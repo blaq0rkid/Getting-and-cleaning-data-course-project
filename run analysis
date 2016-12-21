@@ -1,0 +1,80 @@
+#vector of features
+features <- read.table("features.txt")[,2]
+act_labels <- read.table("activity_labels.txt")
+names(act_labels) <- c("act_no","act_labels")
+
+#test data
+x_test <- read.table("test/X_test.txt")
+y_test <- read.table("test/y_test.txt")
+subj_test <- read.table("test/subject_test.txt")
+names(x_test) <- features
+names(y_test) <- "act_no"
+
+y_test <- merge(y_test,act_labels,by.x = "act_no",by.y = "act_no", all=TRUE)
+
+test_data <- cbind(type = "test",Subject = subj_test$V1, act_labels = y_test$act_labels,x_test)
+
+#train data
+x_train <- read.table("train/X_train.txt")
+y_train <- read.table("train/y_train.txt")
+subj_train <- read.table("train/subject_train.txt")
+names(x_train) <- features
+names(y_train) <- "act_no"
+
+y_train <- merge(y_train,act_labels,by.x = "act_no",by.y = "act_no", all=TRUE)
+
+train_data <- cbind(type = "train",Subject = subj_train$V1,act_labels = y_train$act_labels,x_train)
+
+#combine
+HAR_data_all <- rbind(test_data,train_data)
+
+#only mean and SD
+HAR_data <- HAR_data_all[,grep("(*mean\\(\\)*)|(*std\\(\\)*)|(act_labels)|(Subject)|(type)",names(HAR_data_all))]
+
+#appropriate var name
+n <- names(HAR_data)
+t <- rep("",length(n))
+
+
+t[grep("mean",n)] <- "Mean Value of"
+t[grep("std",n)] <- "Standard Deviation of"
+
+t[grep("Body",n)] <- paste(t[grep("Body",n)], "Body")
+t[grep("Gravity",n)] <- paste(t[grep("Gravity",n)], "Gravity")
+
+t[grep("Acc",n)] <- paste(t[grep("Acc",n)], "Accerelometer")
+t[grep("Gyro",n)] <- paste(t[grep("Gyro",n)], "Gyrometer")
+
+
+t[grep("Jerk",n)] <- paste(t[grep("Jerk",n)], "Jerk")
+t[grep("Mag",n)] <- paste(t[grep("Mag",n)], "Magnitudes")
+t[grep("(Mag)$",n)] <- paste(t[grep("(Mag)$",n)],"Measurements")
+
+t[grep("-X",n)] <- paste(t[grep("-X",n)], "in X Axis")
+t[grep("-Y",n)] <- paste(t[grep("-Y",n)], "in Y Axis")
+t[grep("-Z",n)] <- paste(t[grep("-Z",n)], "in Z Axis")
+
+t[grep("^t",n)] <- paste(t[grep("^t",n)], "in Time")
+t[grep("^f",n)] <- paste(t[grep("^f",n)], "in Frequency")
+
+
+t[1:3] <- c("Type","Subject","Activity")
+
+names(HAR_data) <- make.names(t)
+
+## HAR_AVG independent tidy data set with the average of each variable for each activity and each subject.
+## use dplyr
+
+library("dplyr")
+HAR_AVG <- HAR_data %>% group_by(Type,Subject,Activity) %>% summarise_each(funs(mean))
+
+HAR_AVG$Subject <- factor(  HAR_AVG$Subject )
+
+
+write.table(HAR_AVG,file="HAR_AVG.txt",row.names = FALSE)
+
+## Average only each subject
+HAR_AVG_Sub <- HAR_data[c(2,4:ncol(HAR_data))] %>% group_by(Subject) %>% summarise_each(funs(mean))
+
+## Average only each Activity
+HAR_AVG_Act <- HAR_data[c(3,4:ncol(HAR_data))] %>% group_by(Activity) %>% summarise_each(funs(mean))
